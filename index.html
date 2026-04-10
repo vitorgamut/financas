@@ -257,6 +257,40 @@ td.pix-out{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--dan
 .pdf-item input:focus,.pdf-item select:focus{border-color:var(--accent)}
 .pdf-item-del{background:none;border:none;cursor:pointer;color:var(--muted);font-size:13px;padding:3px 6px;border-radius:5px;transition:all .13s}
 .pdf-item-del:hover{color:var(--danger);background:var(--surface3)}
+
+/* SAVINGS (CAIXINHAS) */
+.boxes-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.box-sum-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px}
+.box-sum-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px}
+.box-sum-val{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:500}
+.boxes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.box-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:22px 24px;display:flex;flex-direction:column;gap:14px;transition:border-color .2s}
+.box-card:hover{border-color:var(--border2)}
+.box-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.box-card-icon{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.box-card-name{font-size:15px;font-weight:700;color:var(--text)}
+.box-card-desc{font-size:12px;color:var(--muted);margin-top:2px}
+.box-card-bal{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:500;letter-spacing:-.02em}
+.box-card-actions{display:flex;gap:8px}
+.box-btn{flex:1;padding:8px;border-radius:10px;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;transition:all .15s}
+.box-btn.deposit{background:var(--green);color:#fff}
+.box-btn.deposit:hover{filter:brightness(1.1)}
+.box-btn.withdraw{background:var(--surface2);border:1px solid var(--border2);color:var(--sub)}
+.box-btn.withdraw:hover{border-color:var(--danger);color:var(--danger)}
+.box-btn.history{background:var(--surface2);border:1px solid var(--border2);color:var(--sub);flex:0;padding:8px 12px}
+.box-btn.history:hover{border-color:var(--accent);color:var(--accent)}
+.box-del-btn{background:none;border:none;cursor:pointer;color:var(--muted);font-size:13px;padding:4px;border-radius:6px;transition:all .13s;line-height:1}
+.box-del-btn:hover{color:var(--danger);background:var(--surface3)}
+
+/* BOX HISTORY MODAL */
+.hist-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.hist-item:last-child{border-bottom:none}
+.hist-left{display:flex;flex-direction:column;gap:3px}
+.hist-desc{font-size:13px;font-weight:500;color:var(--text)}
+.hist-date{font-size:11px;color:var(--muted)}
+.hist-val{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600}
+.hist-val.pos{color:var(--green)}
+.hist-val.neg{color:var(--danger)}
 </style>
 </head>
 <body>
@@ -273,6 +307,10 @@ td.pix-out{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--dan
   </button>
   <div class="sb-sep"></div>
   <div class="sb-label">Finanças</div>
+  <button class="nb" data-view="savings" onclick="selectView('savings')">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0H5m14 0h2M5 21H3M9 7h1m5 0h1M9 11h1m5 0h1M9 15h6"/></svg>
+    Dinheiro Guardado
+  </button>
   <button class="nb" data-view="salary" onclick="selectView('salary')">
     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
     Salário & Saldo
@@ -428,8 +466,120 @@ td.pix-out{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--dan
       </div>
     </div>
   </div>
+  <!-- SAVINGS VIEW -->
+  <div class="content" id="savingsView" style="display:none">
+    <!-- Summary -->
+    <div class="boxes-summary">
+      <div class="box-sum-card">
+        <div class="box-sum-lbl">Total Guardado</div>
+        <div class="box-sum-val" id="savTotalVal" style="color:var(--green)">R$ 0,00</div>
+      </div>
+      <div class="box-sum-card">
+        <div class="box-sum-lbl">Caixinhas Ativas</div>
+        <div class="box-sum-val" id="savBoxCount">0</div>
+      </div>
+      <div class="box-sum-card">
+        <div class="box-sum-lbl">Maior Reserva</div>
+        <div class="box-sum-val" id="savBiggest" style="font-size:16px;color:var(--muted)">—</div>
+      </div>
+    </div>
+
+    <!-- Boxes grid -->
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:15px;font-weight:600">Minhas Caixinhas</div>
+      <button class="add-btn" style="background:var(--green)" onclick="openAddBoxModal()">＋ Nova caixinha</button>
+    </div>
+    <div class="boxes-grid" id="boxesGrid">
+      <div style="color:var(--muted);font-size:13px;grid-column:1/-1">Nenhuma caixinha ainda. Crie uma para começar!</div>
+    </div>
+  </div>
 
 </main>
+
+<!-- ADD BOX MODAL -->
+<div class="mo" id="moAddBox">
+  <div class="modal">
+    <h3>Nova Caixinha</h3>
+    <div class="fg"><label>Nome</label><input type="text" id="inBoxName" placeholder="Ex: Reserva de emergência, Viagem..."></div>
+    <div class="fg"><label>Descrição (opcional)</label><input type="text" id="inBoxDesc" placeholder="Ex: Para a viagem a Portugal"></div>
+    <div class="fg"><label>Emoji / Ícone</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px" id="emojiPicker"></div>
+    </div>
+    <div class="fg"><label>Cor</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px" id="boxColorPicker"></div>
+    </div>
+    <div class="ma">
+      <button class="btn-ghost" onclick="closeMo('moAddBox')">Cancelar</button>
+      <button class="btn-pri" style="background:var(--green)" onclick="saveNewBox()">Criar</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEPOSIT MODAL -->
+<div class="mo" id="moDeposit">
+  <div class="modal">
+    <h3 id="moDepositTitle">Depositar</h3>
+    <div class="fg"><label>Valor (R$)</label><input type="number" id="inDepositVal" placeholder="0,00" min="0" step="0.01"></div>
+    <div class="fg"><label>Origem / Descrição</label><input type="text" id="inDepositDesc" placeholder="Ex: Salário, Transferência..."></div>
+    <div class="fg"><label>Data</label><input type="date" id="inDepositDate"></div>
+    <div class="ma">
+      <button class="btn-ghost" onclick="closeMo('moDeposit')">Cancelar</button>
+      <button class="btn-pri" style="background:var(--green)" onclick="confirmDeposit()">Depositar</button>
+    </div>
+  </div>
+</div>
+
+<!-- WITHDRAW MODAL -->
+<div class="mo" id="moWithdraw">
+  <div class="modal">
+    <h3 id="moWithdrawTitle">Retirar</h3>
+    <div class="fg"><label>Valor (R$)</label><input type="number" id="inWithdrawVal" placeholder="0,00" min="0" step="0.01"></div>
+    <div class="fg"><label>Motivo</label><input type="text" id="inWithdrawDesc" placeholder="Ex: Compra, Emergência..."></div>
+    <div class="fg"><label>Data</label><input type="date" id="inWithdrawDate"></div>
+    <div class="ma">
+      <button class="btn-ghost" onclick="closeMo('moWithdraw')">Cancelar</button>
+      <button class="btn-pri" style="background:var(--danger)" onclick="confirmWithdraw()">Retirar</button>
+    </div>
+  </div>
+</div>
+
+<!-- BOX HISTORY MODAL -->
+<div class="mo" id="moBoxHistory">
+  <div class="modal" style="width:480px;max-height:80vh;overflow-y:auto">
+    <h3 id="moBoxHistTitle">Histórico</h3>
+    <div id="boxHistList" style="display:flex;flex-direction:column"></div>
+    <div class="ma"><button class="btn-ghost" onclick="closeMo('moBoxHistory')">Fechar</button></div>
+  </div>
+</div>
+
+<!-- MOVE ENTRY MODAL -->
+<div class="mo" id="moMove">
+  <div class="modal">
+    <h3>Mover Lançamento</h3>
+    <p id="moMoveDesc" style="font-size:13px;color:var(--sub);line-height:1.5"></p>
+    <div class="fr">
+      <div class="fg" style="flex:1">
+        <label>Mês de destino</label>
+        <select id="inMoveMonth">
+          <option value="0">Janeiro</option><option value="1">Fevereiro</option>
+          <option value="2">Março</option><option value="3">Abril</option>
+          <option value="4">Maio</option><option value="5">Junho</option>
+          <option value="6">Julho</option><option value="7">Agosto</option>
+          <option value="8">Setembro</option><option value="9">Outubro</option>
+          <option value="10">Novembro</option><option value="11">Dezembro</option>
+        </select>
+      </div>
+      <div class="fg" style="flex:1">
+        <label>Ano de destino</label>
+        <select id="inMoveYear"></select>
+      </div>
+    </div>
+    <div class="ma">
+      <button class="btn-ghost" onclick="closeMo('moMove')">Cancelar</button>
+      <button class="btn-pri" onclick="confirmMove()">Mover</button>
+    </div>
+  </div>
+</div>
 
 <!-- ENTRY MODAL -->
 <div class="mo" id="moEntry">
@@ -658,6 +808,7 @@ function loadFromSupabase(callback){
       if(!S.salary) S.salary = {};
       if(!S.pix)    S.pix    = {};
       if(!S.subs)   S.subs   = [];
+      if(!S.boxes)  S.boxes  = [];
       localStorage.setItem('finapp_v3', JSON.stringify(S));
     }
     callback();
@@ -681,7 +832,8 @@ if (!S) {
     cats: DEFAULT_CATS.slice(),
     salary: {},
     pix: {},
-    subs: []
+    subs: [],
+    boxes: []
   };
   try{ var o=localStorage.getItem('finapp_v2'); if(o){var p=JSON.parse(o);if(p.cards)S=p;} }catch(e){}
   try{ var o2=localStorage.getItem('gastos_v1'); if(o2)S.data=JSON.parse(o2); }catch(e){}
@@ -690,6 +842,7 @@ if(!S.cats)   S.cats   = DEFAULT_CATS.slice();
 if(!S.salary) S.salary = {};
 if(!S.pix)    S.pix    = {};
 if(!S.subs)   S.subs   = [];
+if(!S.boxes)  S.boxes  = [];
 function ge(cid,y,m){ return (S.data[cid]&&S.data[cid][y]&&S.data[cid][y][m])||[]; }
 function se(cid,y,m,arr){ if(!S.data[cid])S.data[cid]={}; if(!S.data[cid][y])S.data[cid][y]={}; S.data[cid][y][m]=arr; save(); }
 function fmt(n){ return 'R$ '+n.toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.'); }
@@ -729,6 +882,7 @@ function hideAllViews(){
   document.getElementById('dashView').style.display='none';
   document.getElementById('cardView').style.display='none';
   document.getElementById('salaryView').style.display='none';
+  document.getElementById('savingsView').style.display='none';
   document.getElementById('dashTabsRow').style.display='none';
   document.getElementById('cardTabsRow').style.display='none';
   document.getElementById('salTabsRow').style.display='none';
@@ -745,6 +899,11 @@ function selectView(v){
     document.getElementById('dashTabsRow').style.display='';
     document.getElementById('pageTitle').innerHTML='Dashboard <span>visão geral</span>';
     renderDashTabs(); renderDashboard();
+  } else if(v==='savings'){
+    var bs=document.querySelector('[data-view="savings"]'); if(bs)bs.classList.add('active');
+    document.getElementById('savingsView').style.display='flex';
+    document.getElementById('pageTitle').innerHTML='Dinheiro Guardado <span>caixinhas</span>';
+    renderSavingsView();
   } else if(v==='salary'){
     var b2=document.querySelector('[data-view="salary"]'); if(b2)b2.classList.add('active');
     document.getElementById('salaryView').style.display='flex';
@@ -935,6 +1094,7 @@ function renderTable(){
     return '<tr><td>'+(e.date||'—')+'</td><td>'+e.desc+b+'</td><td class="cat">'+e.cat+'</td><td class="amt">− '+fmt(e.value)+'</td>'+
       '<td><div class="row-actions">'+
         '<button class="edit-row" onclick="openEditModal('+origIdx+')" title="Editar">✏️</button>'+
+        '<button class="edit-row" onclick="openMoveModal('+origIdx+')" title="Mover para outro mês">📅</button>'+
         '<button class="del-row" onclick="delEntry('+origIdx+')" title="Excluir">✕</button>'+
       '</div></td></tr>';
   }).join('');
@@ -1011,6 +1171,40 @@ function saveEdit(){
   ents[editingIdx].cat=cat; ents[editingIdx].date=date;
   se(card,year,month,ents);
   closeMo('moEdit'); editingIdx=null; renderStats(); renderTable();
+}
+
+var movingIdx = null;
+function openMoveModal(i){
+  movingIdx = i;
+  var e = ge(card, year, month)[i];
+  if(!e) return;
+  document.getElementById('moMoveDesc').textContent = '"'+e.desc+'" — '+fmt(e.value)+' (atualmente em '+MONTHS_FULL[month]+'/'+year+')';
+  document.getElementById('inMoveMonth').value = month;
+  // populate year select with ±2 years
+  var ySel = document.getElementById('inMoveYear'); ySel.innerHTML='';
+  for(var y=year-2; y<=year+2; y++){
+    var o=document.createElement('option'); o.value=y; o.textContent=y;
+    if(y===year) o.selected=true;
+    ySel.appendChild(o);
+  }
+  document.getElementById('moMove').classList.add('open');
+}
+function confirmMove(){
+  if(movingIdx===null) return;
+  var destM = parseInt(document.getElementById('inMoveMonth').value);
+  var destY = parseInt(document.getElementById('inMoveYear').value);
+  if(destM===month && destY===year){ showToast('O lançamento já está neste mês.',true); return; }
+  // Remove from current month
+  var srcArr = ge(card, year, month);
+  var entry = srcArr.splice(movingIdx, 1)[0];
+  se(card, year, month, srcArr);
+  // Add to destination month
+  var destArr = ge(card, destY, destM);
+  destArr.unshift(entry);
+  se(card, destY, destM, destArr);
+  closeMo('moMove'); movingIdx=null;
+  renderStats(); renderTable();
+  showToast('"'+entry.desc+'" movido para '+MONTHS_FULL[destM]+'/'+destY+'!');
 }
 
 function delEntry(i){var arr=ge(card,year,month);arr.splice(i,1);se(card,year,month,arr);renderStats();renderTable();}
@@ -1435,6 +1629,165 @@ function restoreSub(i){
   showToast('Assinatura reativada!');
 }
 
+// ── SAVINGS (CAIXINHAS) ───────────────────────────────
+var BOX_EMOJIS = ['🏦','✈️','🏠','🚗','📱','💻','🎓','💍','🏖️','🎉','🛍️','⚕️','🐾','🌱','💰'];
+var BOX_COLORS = ['#22d87a','#7c6aff','#ff8c42','#38bdf8','#ff5fa0','#fbbf24','#f472b6','#34d399','#60a5fa','#a78bfa'];
+var activeBoxIdx = null;
+var selectedBoxEmoji = '🏦';
+var selectedBoxColor = '#22d87a';
+
+function boxBalance(box){
+  return box.history.reduce(function(s,h){ return s + (h.type==='deposit' ? h.val : -h.val); }, 0);
+}
+
+function renderSavingsView(){
+  if(!S.boxes) S.boxes=[];
+  var total=S.boxes.reduce(function(s,b){ return s+boxBalance(b); },0);
+  var active=S.boxes.length;
+  var biggest=S.boxes.length ? S.boxes.reduce(function(a,b){ return boxBalance(b)>boxBalance(a)?b:a; }) : null;
+
+  document.getElementById('savTotalVal').textContent = fmt(total);
+  document.getElementById('savBoxCount').textContent = active;
+  document.getElementById('savBiggest').textContent  = biggest ? biggest.name : '—';
+
+  var grid=document.getElementById('boxesGrid');
+  if(!S.boxes.length){
+    grid.innerHTML='<div style="color:var(--muted);font-size:13px;grid-column:1/-1">Nenhuma caixinha ainda. Clique em "+ Nova caixinha" para começar!</div>';
+    return;
+  }
+
+  grid.innerHTML=S.boxes.map(function(box,i){
+    var bal=boxBalance(box);
+    var balColor=bal>=0?'var(--green)':'var(--danger)';
+    return '<div class="box-card">'+
+      '<div class="box-card-top">'+
+        '<div style="display:flex;align-items:center;gap:12px">'+
+          '<div class="box-card-icon" style="background:'+box.color+'22">'+box.emoji+'</div>'+
+          '<div><div class="box-card-name">'+box.name+'</div>'+(box.desc?'<div class="box-card-desc">'+box.desc+'</div>':'')+'</div>'+
+        '</div>'+
+        '<button class="box-del-btn" onclick="deleteBox('+i+')" title="Excluir caixinha">🗑️</button>'+
+      '</div>'+
+      '<div class="box-card-bal" style="color:'+balColor+'">'+fmt(bal)+'</div>'+
+      '<div class="box-card-actions">'+
+        '<button class="box-btn deposit" onclick="openDepositModal('+i+')">＋ Depositar</button>'+
+        '<button class="box-btn withdraw" onclick="openWithdrawModal('+i+')">− Retirar</button>'+
+        '<button class="box-btn history" onclick="openBoxHistory('+i+')" title="Ver histórico">📋</button>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+function openAddBoxModal(){
+  document.getElementById('inBoxName').value='';
+  document.getElementById('inBoxDesc').value='';
+  selectedBoxEmoji=BOX_EMOJIS[0];
+  selectedBoxColor=BOX_COLORS[0];
+
+  var ep=document.getElementById('emojiPicker'); ep.innerHTML='';
+  BOX_EMOJIS.forEach(function(e,i){
+    var b=document.createElement('button'); b.type='button';
+    b.style.cssText='width:34px;height:34px;border-radius:8px;background:'+(i===0?'var(--surface3)':'none')+';border:'+(i===0?'1px solid var(--accent)':'1px solid transparent')+';cursor:pointer;font-size:18px;transition:all .13s';
+    b.textContent=e;
+    (function(btn,em,idx){btn.onclick=function(){selectedBoxEmoji=em;ep.querySelectorAll('button').forEach(function(x,j){x.style.background=j===idx?'var(--surface3)':'none';x.style.border=j===idx?'1px solid var(--accent)':'1px solid transparent';});};})(b,e,i);
+    ep.appendChild(b);
+  });
+
+  var cp=document.getElementById('boxColorPicker'); cp.innerHTML='';
+  BOX_COLORS.forEach(function(col,i){
+    var b=document.createElement('button'); b.type='button';
+    b.style.cssText='width:26px;height:26px;border-radius:50%;background:'+col+';border:3px solid '+(i===0?'#fff':'transparent')+';cursor:pointer;transition:border-color .13s';
+    (function(btn,c,idx){btn.onclick=function(){selectedBoxColor=c;cp.querySelectorAll('button').forEach(function(x,j){x.style.borderColor=j===idx?'#fff':'transparent';});};})(b,col,i);
+    cp.appendChild(b);
+  });
+
+  document.getElementById('moAddBox').classList.add('open');
+  setTimeout(function(){document.getElementById('inBoxName').focus();},50);
+}
+
+function saveNewBox(){
+  var name=document.getElementById('inBoxName').value.trim();
+  var desc=document.getElementById('inBoxDesc').value.trim();
+  if(!name){document.getElementById('inBoxName').focus();return;}
+  if(!S.boxes) S.boxes=[];
+  S.boxes.push({id:'box_'+Date.now(),name:name,desc:desc,emoji:selectedBoxEmoji,color:selectedBoxColor,history:[]});
+  save(); closeMo('moAddBox'); renderSavingsView();
+  showToast('"'+name+'" criada!');
+}
+
+function deleteBox(i){
+  if(!confirm('Excluir a caixinha "'+S.boxes[i].name+'"? Todo o histórico será perdido.')) return;
+  S.boxes.splice(i,1); save(); renderSavingsView();
+}
+
+function openDepositModal(i){
+  activeBoxIdx=i;
+  document.getElementById('moDepositTitle').textContent='Depositar em: '+S.boxes[i].name;
+  document.getElementById('inDepositVal').value='';
+  document.getElementById('inDepositDesc').value='';
+  document.getElementById('inDepositDate').value=new Date().toISOString().split('T')[0];
+  document.getElementById('moDeposit').classList.add('open');
+  setTimeout(function(){document.getElementById('inDepositVal').focus();},50);
+}
+
+function confirmDeposit(){
+  var val=parseFloat(document.getElementById('inDepositVal').value);
+  var desc=document.getElementById('inDepositDesc').value.trim();
+  var date=document.getElementById('inDepositDate').value;
+  if(!val||val<=0){document.getElementById('inDepositVal').focus();return;}
+  if(!desc){document.getElementById('inDepositDesc').focus();return;}
+  S.boxes[activeBoxIdx].history.push({type:'deposit',val:val,desc:desc,date:date});
+  save(); closeMo('moDeposit'); renderSavingsView();
+  showToast(fmt(val)+' depositado em "'+S.boxes[activeBoxIdx].name+'"!');
+  activeBoxIdx=null;
+}
+
+function openWithdrawModal(i){
+  activeBoxIdx=i;
+  var bal=boxBalance(S.boxes[i]);
+  document.getElementById('moWithdrawTitle').textContent='Retirar de: '+S.boxes[i].name+' ('+fmt(bal)+' disponível)';
+  document.getElementById('inWithdrawVal').value='';
+  document.getElementById('inWithdrawDesc').value='';
+  document.getElementById('inWithdrawDate').value=new Date().toISOString().split('T')[0];
+  document.getElementById('moWithdraw').classList.add('open');
+  setTimeout(function(){document.getElementById('inWithdrawVal').focus();},50);
+}
+
+function confirmWithdraw(){
+  var val=parseFloat(document.getElementById('inWithdrawVal').value);
+  var desc=document.getElementById('inWithdrawDesc').value.trim();
+  var date=document.getElementById('inWithdrawDate').value;
+  if(!val||val<=0){document.getElementById('inWithdrawVal').focus();return;}
+  if(!desc){document.getElementById('inWithdrawDesc').focus();return;}
+  var bal=boxBalance(S.boxes[activeBoxIdx]);
+  if(val>bal){ showToast('Saldo insuficiente na caixinha.',true); return; }
+  S.boxes[activeBoxIdx].history.push({type:'withdraw',val:val,desc:desc,date:date});
+  save(); closeMo('moWithdraw'); renderSavingsView();
+  showToast(fmt(val)+' retirado de "'+S.boxes[activeBoxIdx].name+'".');
+  activeBoxIdx=null;
+}
+
+function openBoxHistory(i){
+  var box=S.boxes[i];
+  document.getElementById('moBoxHistTitle').textContent='📋 '+box.name;
+  var list=document.getElementById('boxHistList');
+  if(!box.history.length){
+    list.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">Nenhuma movimentação ainda.</div>';
+  } else {
+    var sorted=box.history.slice().sort(function(a,b){return new Date(b.date)-new Date(a.date);});
+    list.innerHTML=sorted.map(function(h){
+      var isDeposit=h.type==='deposit';
+      return '<div class="hist-item">'+
+        '<div class="hist-left">'+
+          '<div class="hist-desc">'+(isDeposit?'↑ ':'↓ ')+h.desc+'</div>'+
+          '<div class="hist-date">'+(h.date||'—')+'</div>'+
+        '</div>'+
+        '<div class="hist-val '+(isDeposit?'pos':'neg')+'">'+(isDeposit?'+ ':'- ')+fmt(h.val)+'</div>'+
+      '</div>';
+    }).join('');
+  }
+  document.getElementById('moBoxHistory').classList.add('open');
+}
+
 function editAppTitle(){
   var span=document.getElementById('appTitle'); if(!span)return; var current=span.textContent;
   var input=document.createElement('input');
@@ -1482,11 +1835,11 @@ function showToast(msg,err){
   document.body.appendChild(t); setTimeout(function(){if(t.parentNode)t.remove();},3000);
 }
 
-['moEntry','moAddCard','moRename','moDelete','moEdit','moSalary','moPix','moCats','moPdfReview','moAddSub'].forEach(function(id){
+['moEntry','moAddCard','moRename','moDelete','moEdit','moSalary','moPix','moCats','moPdfReview','moAddSub','moAddBox','moDeposit','moWithdraw','moBoxHistory','moMove'].forEach(function(id){
   document.getElementById(id).addEventListener('click',function(e){if(e.target===this)closeMo(id);});
 });
 document.addEventListener('keydown',function(e){
-  if(e.key==='Escape')['moEntry','moAddCard','moRename','moDelete','moEdit','moSalary','moPix','moCats','moPdfReview','moAddSub'].forEach(closeMo);
+  if(e.key==='Escape')['moEntry','moAddCard','moRename','moDelete','moEdit','moSalary','moPix','moCats','moPdfReview','moAddSub','moAddBox','moDeposit','moWithdraw','moBoxHistory','moMove'].forEach(closeMo);
   if(e.key==='Enter'){
     if(document.getElementById('moEntry').classList.contains('open'))saveEntry();
     if(document.getElementById('moAddCard').classList.contains('open'))saveNewCard();
@@ -1496,6 +1849,9 @@ document.addEventListener('keydown',function(e){
     if(document.getElementById('moPix').classList.contains('open'))savePix();
     if(document.getElementById('moCats').classList.contains('open'))addCategory();
     if(document.getElementById('moAddSub').classList.contains('open'))saveNewSub();
+    if(document.getElementById('moAddBox').classList.contains('open'))saveNewBox();
+    if(document.getElementById('moDeposit').classList.contains('open'))confirmDeposit();
+    if(document.getElementById('moWithdraw').classList.contains('open'))confirmWithdraw();
   }
 });
 
