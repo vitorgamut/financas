@@ -423,6 +423,14 @@ td.pix-out{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--dan
             <svg class="search-icon" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
             <input type="text" id="searchInput" class="search-input" placeholder="Buscar..." oninput="renderTable()">
           </div>
+          <select id="sortBy" class="filter-select" onchange="renderTable()">
+            <option value="default">Ordem padrão</option>
+            <option value="date-new">Data: mais recente</option>
+            <option value="date-old">Data: mais antiga</option>
+            <option value="value-desc">Valor: maior primeiro</option>
+            <option value="value-asc">Valor: menor primeiro</option>
+            <option value="cat">Categoria A→Z</option>
+          </select>
           <select id="filterCat" class="filter-select" onchange="renderTable()">
             <option value="">Todas</option>
           </select>
@@ -1030,7 +1038,7 @@ function renderCardTabs(){
   var el=document.getElementById('cardTabs'); el.innerHTML='';
   MONTHS.forEach(function(m,i){
     var b=document.createElement('button'); b.className='mt'+(i===month?' active':''); b.textContent=m;
-    b.onclick=function(){month=i;document.getElementById('searchInput').value='';document.getElementById('filterCat').value='';renderCardTabs();injectSubsForMonth(year,month);renderStats();renderTable();}; el.appendChild(b);
+    b.onclick=function(){month=i;document.getElementById('searchInput').value='';document.getElementById('filterCat').value='';document.getElementById('sortBy').value='default';renderCardTabs();injectSubsForMonth(year,month);renderStats();renderTable();}; el.appendChild(b);
   });
 }
 function renderStats(){
@@ -1070,11 +1078,26 @@ function renderTable(){
   var ents=ge(card,year,month);
   var q=(document.getElementById('searchInput').value||'').toLowerCase();
   var fc=document.getElementById('filterCat').value;
-  var filtered=ents.filter(function(e,i){
+  var sort=document.getElementById('sortBy').value;
+  var filtered=ents.filter(function(e){
     var matchQ=!q||(e.desc.toLowerCase().indexOf(q)!==-1)||(e.cat.toLowerCase().indexOf(q)!==-1);
     var matchC=!fc||e.cat===fc;
     return matchQ&&matchC;
   });
+
+  // Apply sort
+  if(sort==='date-new'){
+    filtered=filtered.slice().sort(function(a,b){ return new Date(b.date||'1900-01-01')-new Date(a.date||'1900-01-01'); });
+  } else if(sort==='date-old'){
+    filtered=filtered.slice().sort(function(a,b){ return new Date(a.date||'1900-01-01')-new Date(b.date||'1900-01-01'); });
+  } else if(sort==='value-desc'){
+    filtered=filtered.slice().sort(function(a,b){ return b.value-a.value; });
+  } else if(sort==='value-asc'){
+    filtered=filtered.slice().sort(function(a,b){ return a.value-b.value; });
+  } else if(sort==='cat'){
+    filtered=filtered.slice().sort(function(a,b){ return a.cat.localeCompare(b.cat); });
+  }
+
   var el=document.getElementById('tableWrap');
 
   if(!ents.length){
