@@ -715,6 +715,23 @@ td.pix-out{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--dan
   </div>
 </div>
 
+<!-- EDIT SUBSCRIPTION MODAL -->
+<div class="mo" id="moEditSub">
+  <div class="modal">
+    <h3>Editar Assinatura</h3>
+    <div class="fg"><label>Nome do serviço</label><input type="text" id="inEditSubName" placeholder="Ex: Netflix, Spotify..."></div>
+    <div class="fr">
+      <div class="fg" style="flex:1"><label>Valor mensal (R$)</label><input type="number" id="inEditSubVal" placeholder="0,00" min="0" step="0.01"></div>
+      <div class="fg" style="flex:1"><label>Categoria</label><select id="inEditSubCat"></select></div>
+    </div>
+    <div class="fg"><label>Cartão</label><select id="inEditSubCard"></select></div>
+    <div class="ma">
+      <button class="btn-ghost" onclick="closeMo('moEditSub')">Cancelar</button>
+      <button class="btn-pri" onclick="saveEditSub()">Salvar alterações</button>
+    </div>
+  </div>
+</div>
+
 <!-- ADD SUBSCRIPTION MODAL -->
 <div class="mo" id="moAddSub">
   <div class="modal">
@@ -1594,7 +1611,8 @@ function renderSubsSection(){
       : '<span style="font-size:10px;background:#7c6aff18;color:var(--accent2);padding:2px 7px;border-radius:5px;font-weight:600">ATIVA</span>';
     var actions = sub.cancelled
       ? '<button class="sub-action-btn restore" onclick="restoreSub('+i+')">↩ Reativar</button>'
-      : '<button class="sub-action-btn cancel" onclick="cancelSub('+i+')">✕ Cancelar</button>';
+      : '<button class="sub-action-btn" onclick="openEditSubModal('+i+')" style="color:var(--accent2)">✏️ Editar</button>'+
+        '<button class="sub-action-btn cancel" onclick="cancelSub('+i+')">✕ Cancelar</button>';
     return '<div class="sub-card '+(sub.cancelled?'cancelled':'active')+'">' +
       '<div style="display:flex;align-items:center;justify-content:space-between">'+statusBadge+'<span style="font-size:10px;color:var(--muted)">'+cName(sub.cardId)+'</span></div>' +
       '<div class="sub-card-name">'+sub.name+'</div>' +
@@ -1603,6 +1621,95 @@ function renderSubsSection(){
       '<div class="sub-card-actions">'+actions+'</div>' +
     '</div>';
   }).join('');
+}
+
+var editingSubIdx = null;
+
+function openEditSubModal(i){
+  editingSubIdx = i;
+  var sub = S.subs[i];
+  document.getElementById('inEditSubName').value = sub.name;
+  document.getElementById('inEditSubVal').value  = sub.value;
+
+  var catSel = document.getElementById('inEditSubCat');
+  catSel.innerHTML = S.cats.map(function(c){ return '<option'+(c===sub.cat?' selected':'')+'>'+c+'</option>'; }).join('');
+
+  var cardSel = document.getElementById('inEditSubCard');
+  cardSel.innerHTML = S.cards.map(function(c){ return '<option value="'+c.id+'"'+(c.id===sub.cardId?' selected':'')+'>'+c.name+'</option>'; }).join('');
+
+  document.getElementById('moEditSub').classList.add('open');
+  setTimeout(function(){ document.getElementById('inEditSubName').focus(); }, 50);
+}
+
+function saveEditSub(){
+  if(editingSubIdx === null) return;
+  var sub = S.subs[editingSubIdx];
+  var newName   = document.getElementById('inEditSubName').value.trim();
+  var newVal    = parseFloat(document.getElementById('inEditSubVal').value);
+  var newCat    = document.getElementById('inEditSubCat').value;
+  var newCardId = document.getElementById('inEditSubCard').value;
+
+  if(!newName){ document.getElementById('inEditSubName').focus(); return; }
+  if(!newVal || newVal <= 0){ document.getElementById('inEditSubVal').focus(); return; }
+
+  var oldName   = sub.name;
+  var oldVal    = sub.value;
+  var oldCat    = sub.cat;
+  var oldCardId = sub.cardId;
+
+  // Update the sub
+  sub.name   = newName;
+  sub.value  = newVal;
+  sub.cat    = newCat;
+  sub.cardId = newCardId;
+
+  // Update all injected entries across all months that match this sub
+  var startY = parseInt(sub.start.split('-')[0]);
+  var startM = parseInt(sub.start.split('-')[1]) - 1;
+
+  // Go through all years/months in data and update matching entries
+  Object.keys(S.data).forEach(function(cid){
+    Object.keys(S.data[cid]).forEach(function(y){
+      Object.keys(S.data[cid][y]).forEach(function(m){
+        var arr = S.data[cid][y][m];
+        var changed = false;
+        arr.forEach(function(e){
+          if(e.subId === sub.id){
+            // Remove from old card if card changed
+            if(cid !== newCardId){
+              // Will be handled by removing below
+            }
+            e.desc  = newName;
+            e.value = newVal;
+            e.cat   = newCat;
+            changed = true;
+          }
+        });
+        if(changed){
+          if(cid !== newCardId){
+            // Move entries to new card
+            var keep    = arr.filter(function(e){ return e.subId !== sub.id; });
+            var toMove  = arr.filter(function(e){ return e.subId === sub.id; });
+            S.data[cid][y][m] = keep;
+            if(!S.data[newCardId])          S.data[newCardId] = {};
+            if(!S.data[newCardId][y])        S.data[newCardId][y] = {};
+            if(!S.data[newCardId][y][m])     S.data[newCardId][y][m] = [];
+            // Only add if not already there
+            var destArr = S.data[newCardId][y][m];
+            var alreadyThere = destArr.some(function(e){ return e.subId === sub.id; });
+            if(!alreadyThere) toMove.forEach(function(e){ destArr.push(e); });
+          }
+          // If same card, entries were updated in-place above
+        }
+      });
+    });
+  });
+
+  save();
+  closeMo('moEditSub');
+  editingSubIdx = null;
+  renderSubsSection();
+  showToast('"'+newName+'" atualizada!');
 }
 
 function openAddSubModal(){
@@ -1858,11 +1965,11 @@ function showToast(msg,err){
   document.body.appendChild(t); setTimeout(function(){if(t.parentNode)t.remove();},3000);
 }
 
-['moEntry','moAddCard','moRename','moDelete','moEdit','moSalary','moPix','moCats','moPdfReview','moAddSub','moAddBox','moDeposit','moWithdraw','moBoxHistory','moMove'].forEach(function(id){
+['moEntry','moAddCard','moRename','moDelete','moEdit','moSalary','moPix','moCats','moPdfReview','moAddSub','moEditSub','moAddBox','moDeposit','moWithdraw','moBoxHistory','moMove'].forEach(function(id){
   document.getElementById(id).addEventListener('click',function(e){if(e.target===this)closeMo(id);});
 });
 document.addEventListener('keydown',function(e){
-  if(e.key==='Escape')['moEntry','moAddCard','moRename','moDelete','moEdit','moSalary','moPix','moCats','moPdfReview','moAddSub','moAddBox','moDeposit','moWithdraw','moBoxHistory','moMove'].forEach(closeMo);
+  if(e.key==='Escape')['moEntry','moAddCard','moRename','moDelete','moEdit','moSalary','moPix','moCats','moPdfReview','moAddSub','moEditSub','moAddBox','moDeposit','moWithdraw','moBoxHistory','moMove'].forEach(closeMo);
   if(e.key==='Enter'){
     if(document.getElementById('moEntry').classList.contains('open'))saveEntry();
     if(document.getElementById('moAddCard').classList.contains('open'))saveNewCard();
@@ -1872,6 +1979,7 @@ document.addEventListener('keydown',function(e){
     if(document.getElementById('moPix').classList.contains('open'))savePix();
     if(document.getElementById('moCats').classList.contains('open'))addCategory();
     if(document.getElementById('moAddSub').classList.contains('open'))saveNewSub();
+    if(document.getElementById('moEditSub').classList.contains('open'))saveEditSub();
     if(document.getElementById('moAddBox').classList.contains('open'))saveNewBox();
     if(document.getElementById('moDeposit').classList.contains('open'))confirmDeposit();
     if(document.getElementById('moWithdraw').classList.contains('open'))confirmWithdraw();
