@@ -291,6 +291,14 @@ td.pix-out{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--dan
 .hist-val{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600}
 .hist-val.pos{color:var(--green)}
 .hist-val.neg{color:var(--danger)}
+
+/* BATCH IMPORT */
+.batch-item{background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:9px 12px;display:grid;grid-template-columns:90px 1fr 90px auto;gap:8px;align-items:center}
+.batch-item input{background:var(--surface);border:1px solid var(--border2);border-radius:6px;padding:4px 8px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;outline:none;width:100%}
+.batch-item input:focus{border-color:var(--accent)}
+.batch-item-del{background:none;border:none;cursor:pointer;color:var(--muted);font-size:13px;padding:2px 5px;border-radius:5px;transition:all .13s}
+.batch-item-del:hover{color:var(--danger)}
+.batch-error{background:#ff4d6a18;border:1px solid #ff4d6a44;border-radius:9px;padding:8px 12px;font-size:12px;color:var(--danger)}
 </style>
 </head>
 <body>
@@ -434,11 +442,10 @@ td.pix-out{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--dan
           <select id="filterCat" class="filter-select" onchange="renderTable()">
             <option value="">Todas</option>
           </select>
-          <button class="add-btn" style="background:var(--accent)" onclick="document.getElementById('pdfInput').click()" title="Importar fatura PDF">
-            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-            Importar Fatura
+          <button class="add-btn" style="background:var(--surface2);border:1px solid var(--border2);color:var(--sub)" onclick="openBatchModal()">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+            Lote
           </button>
-          <input type="file" id="pdfInput" accept=".pdf" style="display:none" onchange="importFatura(event)">
           <button class="add-btn" id="addEntryBtn" onclick="openEntryModal()">＋ Adicionar</button>
         </div>
       </div>
@@ -557,6 +564,36 @@ td.pix-out{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--dan
     <h3 id="moBoxHistTitle">Histórico</h3>
     <div id="boxHistList" style="display:flex;flex-direction:column"></div>
     <div class="ma"><button class="btn-ghost" onclick="closeMo('moBoxHistory')">Fechar</button></div>
+  </div>
+</div>
+
+<!-- BATCH MODAL -->
+<div class="mo" id="moBatch">
+  <div class="modal" style="width:560px;max-width:95vw">
+    <h3>Cadastro em Lote</h3>
+    <p style="font-size:12.5px;color:var(--muted);line-height:1.7">
+      Cole os lançamentos abaixo, um por linha.<br>
+      Formato: <strong style="color:var(--text);font-family:'JetBrains Mono',monospace">DD/MM Nome do gasto 00,00</strong><br>
+      Exemplo:<br>
+      <span style="font-family:'JetBrains Mono',monospace;color:var(--accent2);font-size:12px">
+        01/06 Ifood 45,90<br>
+        03/06 Uber 23,00<br>
+        05/06 Netflix 37,00
+      </span>
+    </p>
+    <div class="fg">
+      <label>Lançamentos</label>
+      <textarea id="batchInput" rows="8" placeholder="01/06 Ifood 45,90&#10;03/06 Uber 23,00&#10;05/06 Netflix 37,00" style="background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:10px 13px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12.5px;outline:none;resize:vertical;width:100%;line-height:1.7;transition:border-color .15s"></textarea>
+    </div>
+    <div id="batchPreview" style="display:none;max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
+    <div class="ma" style="justify-content:space-between;align-items:center">
+      <span id="batchCount" style="font-size:12px;color:var(--muted)"></span>
+      <div style="display:flex;gap:8px">
+        <button class="btn-ghost" onclick="closeMo('moBatch')">Cancelar</button>
+        <button class="btn-ghost" onclick="parseBatch()" style="border-color:var(--accent);color:var(--accent)">Pré-visualizar</button>
+        <button class="btn-pri" id="batchSaveBtn" onclick="confirmBatch()" style="display:none">Salvar todos</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -751,23 +788,6 @@ td.pix-out{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--dan
 </div>
 
 <!-- PDF REVIEW MODAL -->
-<div class="mo" id="moPdfReview">
-  <div class="modal" style="width:640px;max-width:95vw;max-height:85vh;overflow-y:auto">
-    <div style="display:flex;align-items:center;justify-content:space-between">
-      <h3 id="pdfReviewTitle">Lançamentos Encontrados</h3>
-      <div id="pdfLoadingSpinner" style="display:none;font-size:13px;color:var(--muted)">⏳ Analisando PDF...</div>
-    </div>
-    <div style="font-size:12.5px;color:var(--muted)" id="pdfReviewSub">Revise e edite antes de salvar</div>
-    <div id="pdfReviewList" style="display:flex;flex-direction:column;gap:8px;max-height:420px;overflow-y:auto"></div>
-    <div class="ma" style="justify-content:space-between;align-items:center">
-      <span id="pdfReviewCount" style="font-size:12px;color:var(--muted)"></span>
-      <div style="display:flex;gap:8px">
-        <button class="btn-ghost" onclick="closeMo('moPdfReview')">Cancelar</button>
-        <button class="btn-pri" onclick="confirmFaturaImport()">Salvar todos</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- DELETE MODAL -->
 <div class="mo" id="moDelete">
@@ -796,9 +816,8 @@ var SUPA_HEADERS = {'Content-Type':'application/json','apikey':SUPA_KEY,'Authori
 var saveTimer = null;
 
 function save(){
-  // Always save to localStorage immediately as backup
+  S._savedAt = new Date().toISOString();
   localStorage.setItem('finapp_v3', JSON.stringify(S));
-  // Debounce Supabase sync by 800ms to avoid too many requests
   clearTimeout(saveTimer);
   saveTimer = setTimeout(function(){ syncToSupabase(); }, 800);
 }
@@ -1213,7 +1232,111 @@ function saveEdit(){
   closeMo('moEdit'); editingIdx=null; renderStats(); renderTable();
 }
 
-var movingIdx = null;
+// ── BATCH IMPORT ──────────────────────────────────────
+var batchItems = [];
+
+function openBatchModal(){
+  document.getElementById('batchInput').value = '';
+  document.getElementById('batchPreview').style.display = 'none';
+  document.getElementById('batchPreview').innerHTML = '';
+  document.getElementById('batchCount').textContent = '';
+  document.getElementById('batchSaveBtn').style.display = 'none';
+  batchItems = [];
+  document.getElementById('moBatch').classList.add('open');
+  setTimeout(function(){ document.getElementById('batchInput').focus(); }, 50);
+}
+
+function parseBatch(){
+  var raw = document.getElementById('batchInput').value.trim();
+  if(!raw){ showToast('Cole os lançamentos primeiro.',true); return; }
+
+  var lines = raw.split('\n').map(function(l){ return l.trim(); }).filter(function(l){ return l.length > 0; });
+  batchItems = [];
+  var errors = [];
+
+  lines.forEach(function(line, i){
+    // Try to parse: DD/MM name value
+    // Value can be "45,90" or "45.90" or "1.234,56"
+    var match = line.match(/^(\d{1,2}\/\d{1,2})\s+(.+?)\s+([\d.,]+)$/);
+    if(!match){
+      errors.push('Linha '+(i+1)+': "'+line+'" — não reconhecida');
+      return;
+    }
+    var datePart = match[1];
+    var desc     = match[2].trim();
+    var valStr   = match[3].replace(/\./g,'').replace(',','.');
+    var value    = parseFloat(valStr);
+
+    if(!desc || isNaN(value) || value <= 0){
+      errors.push('Linha '+(i+1)+': valor inválido em "'+line+'"');
+      return;
+    }
+
+    // Build full date using current year
+    var parts = datePart.split('/');
+    var d = parseInt(parts[0]), m2 = parseInt(parts[1]);
+    var fullDate = year + '-' + String(m2).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+
+    batchItems.push({ date: fullDate, desc: desc, value: value, cat: 'Outros' });
+  });
+
+  var preview = document.getElementById('batchPreview');
+  preview.style.display = 'flex';
+  preview.innerHTML = '';
+
+  // Show errors
+  errors.forEach(function(e){
+    var div = document.createElement('div');
+    div.className = 'batch-error';
+    div.textContent = e;
+    preview.appendChild(div);
+  });
+
+  // Show parsed items
+  var catOpts = S.cats.map(function(c){ return '<option>'+c+'</option>'; }).join('');
+  batchItems.forEach(function(item, i){
+    var div = document.createElement('div');
+    div.className = 'batch-item';
+    div.innerHTML =
+      '<input type="date" value="'+item.date+'" onchange="batchItems['+i+'].date=this.value">'+
+      '<input type="text" value="'+item.desc+'" onchange="batchItems['+i+'].desc=this.value">'+
+      '<input type="number" value="'+item.value+'" step="0.01" onchange="batchItems['+i+'].value=parseFloat(this.value)||0">'+
+      '<button class="batch-item-del" onclick="removeBatchItem('+i+')">✕</button>';
+    preview.appendChild(div);
+  });
+
+  var count = batchItems.length;
+  document.getElementById('batchCount').textContent = count + ' lançamento' + (count!==1?'s':'') + ' reconhecido' + (count!==1?'s':'') + (errors.length?' · '+errors.length+' erro'+(errors.length>1?'s':''):'');
+  document.getElementById('batchSaveBtn').style.display = count > 0 ? 'block' : 'none';
+}
+
+function removeBatchItem(i){
+  batchItems.splice(i,1);
+  parseBatch();
+}
+
+function confirmBatch(){
+  if(!batchItems.length) return;
+  var added = 0;
+  batchItems.forEach(function(item){
+    if(!item.desc || !item.value || item.value <= 0) return;
+    // Determine month from item date
+    var m2 = month, y2 = year;
+    if(item.date){
+      var d = new Date(item.date + 'T12:00:00');
+      if(!isNaN(d.getTime())){ m2 = d.getMonth(); y2 = d.getFullYear(); }
+    }
+    var arr = ge(card, y2, m2);
+    arr.push({ desc: item.desc, value: item.value, cat: item.cat || 'Outros', date: item.date });
+    se(card, y2, m2, arr);
+    added++;
+  });
+  closeMo('moBatch');
+  batchItems = [];
+  renderStats(); renderTable();
+  showToast(added + ' lançamento' + (added!==1?'s':'') + ' cadastrado' + (added!==1?'s':'') + '!');
+}
+
 function openMoveModal(i){
   movingIdx = i;
   var e = ge(card, year, month)[i];
@@ -1465,147 +1588,37 @@ function removeCategory(i){
 // populate category dropdowns on init
 function initCatSelects(){ populateCatSelect('inCat'); populateCatSelect('editCat'); populateCatSelect('filterCat'); }
 
-// ── PDF FATURA IMPORT ─────────────────────────────────
-var pdfReviewItems = [];
-
-function importFatura(ev){
-  var file = ev.target.files[0]; if(!file) return;
-  ev.target.value = '';
-
-  // Show modal with loading state
-  document.getElementById('pdfReviewTitle').textContent = 'Analisando fatura...';
-  document.getElementById('pdfReviewSub').textContent = cName(card) + ' — ' + file.name;
-  document.getElementById('pdfLoadingSpinner').style.display = 'flex';
-  document.getElementById('pdfReviewList').innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted)">⏳ A IA está lendo o PDF...<br><br><small>Isso pode levar alguns segundos</small></div>';
-  document.getElementById('pdfReviewCount').textContent = '';
-  document.getElementById('moPdfReview').classList.add('open');
-
-  // Convert PDF to base64
-  var reader = new FileReader();
-  reader.onload = function(e){
-    var base64 = e.target.result.split(',')[1];
-    callClaudeWithPdf(base64, file.name);
-  };
-  reader.readAsDataURL(file);
-}
-
-function callClaudeWithPdf(base64, fileName){
-  var cardNameStr = cName(card);
-  var catsStr = S.cats.join(', ');
-  var prompt = 'Você é um extrator de dados de faturas de cartão de crédito brasileiro. Analise este PDF de fatura do cartão "'+cardNameStr+'" e extraia TODOS os lançamentos/transações.\n\nPara cada lançamento retorne um JSON array com objetos no formato:\n{"desc":"descrição da compra","value":00.00,"date":"YYYY-MM-DD","cat":"categoria"}\n\nRegras:\n- "value" deve ser número positivo (sem R$, sem pontos de milhar, use ponto decimal)\n- "date" no formato YYYY-MM-DD. Se não tiver ano, use o ano da fatura\n- "cat" deve ser UMA das seguintes: '+catsStr+'\n- Ignore pagamentos, créditos, encargos, juros e IOF — apenas compras e serviços\n- Ignore linhas de resumo/total\n- Para parceladas, inclua cada parcela como item separado se estiver na fatura\n\nResponda APENAS com o JSON array puro, sem texto adicional, sem markdown, sem ```json.';
-
-  fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4000,
-      messages: [{
-        role: 'user',
-        content: [
-          {type:'document', source:{type:'base64', media_type:'application/pdf', data:base64}},
-          {type:'text', text:prompt}
-        ]
-      }]
-    })
-  })
-  .then(function(res){ return res.json(); })
-  .then(function(data){
-    var text = '';
-    if(data.content && data.content[0] && data.content[0].text){
-      text = data.content[0].text.trim();
-    }
-    // Clean up any accidental markdown
-    text = text.replace(/```json/g,'').replace(/```/g,'').trim();
-    var items = JSON.parse(text);
-    showPdfReview(items);
-  })
-  .catch(function(e){
-    document.getElementById('pdfReviewTitle').textContent = 'Erro ao analisar';
-    document.getElementById('pdfReviewList').innerHTML = '<div style="text-align:center;padding:24px;color:var(--danger)">Não foi possível ler o PDF.<br><small>'+e.message+'</small></div>';
-    document.getElementById('pdfLoadingSpinner').style.display = 'none';
-  });
-}
-
-function showPdfReview(items){
-  pdfReviewItems = items;
-  document.getElementById('pdfLoadingSpinner').style.display = 'none';
-  document.getElementById('pdfReviewTitle').textContent = 'Lançamentos Encontrados';
-  document.getElementById('pdfReviewSub').textContent = 'Revise, edite ou remova antes de salvar';
-  document.getElementById('pdfReviewCount').textContent = items.length + ' lançamento' + (items.length !== 1 ? 's' : '') + ' encontrado' + (items.length !== 1 ? 's' : '');
-
-  var catOpts = S.cats.map(function(c){ return '<option>'+c+'</option>'; }).join('');
-
-  document.getElementById('pdfReviewList').innerHTML = items.map(function(item, i){
-    return '<div class="pdf-item" id="pdfItem_'+i+'">' +
-      '<input type="text" value="'+escHtml(item.desc)+'" placeholder="Descrição" oninput="pdfReviewItems['+i+'].desc=this.value">' +
-      '<input type="number" value="'+item.value+'" placeholder="Valor" style="width:90px" oninput="pdfReviewItems['+i+'].value=parseFloat(this.value)||0">' +
-      '<select onchange="pdfReviewItems['+i+'].cat=this.value">'+S.cats.map(function(c){ return '<option'+(c===item.cat?' selected':'')+'>'+c+'</option>'; }).join('')+'</select>' +
-      '<input type="date" value="'+(item.date||'')+'" style="width:130px" onchange="pdfReviewItems['+i+'].date=this.value">' +
-      '<button class="pdf-item-del" onclick="removePdfItem('+i+')">✕</button>' +
-    '</div>';
-  }).join('');
-}
-
-function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-function removePdfItem(i){
-  pdfReviewItems.splice(i, 1);
-  showPdfReview(pdfReviewItems);
-}
-
-function confirmFaturaImport(){
-  var added = 0;
-  pdfReviewItems.forEach(function(item){
-    if(!item.desc || !item.value || item.value <= 0) return;
-    // Determine month/year from item date or fallback to current
-    var m = month, y = year;
-    if(item.date){
-      var d = new Date(item.date + 'T12:00:00');
-      if(!isNaN(d.getTime())){ m = d.getMonth(); y = d.getFullYear(); }
-    }
-    var arr = ge(card, y, m);
-    arr.push({desc:item.desc, value:item.value, cat:item.cat||'Outros', date:item.date||''});
-    se(card, y, m, arr);
-    added++;
-  });
-  closeMo('moPdfReview');
-  renderStats(); renderTable();
-  showToast(added + ' lançamento' + (added !== 1 ? 's' : '') + ' importado' + (added !== 1 ? 's' : '') + '!');
-}
 
 // ── SUBSCRIPTIONS ─────────────────────────────────────
 function injectSubsForMonth(y, m){
-  // Called when rendering a card view — injects active subs as entries if not already there
+  if(!S.subs) return;
   S.subs.forEach(function(sub){
     if(sub.cancelled) return;
-    // Check if sub started on or before this month
     var startY = parseInt(sub.start.split('-')[0]);
     var startM = parseInt(sub.start.split('-')[1]) - 1;
     if(y < startY || (y === startY && m < startM)) return;
-    // Check if already injected this month for this card
     var arr = ge(sub.cardId, y, m);
     var already = arr.some(function(e){ return e.subId === sub.id; });
     if(!already){
-      arr.push({desc: sub.name, value: sub.value, cat: sub.cat, date: y+'-'+String(m+1).padStart(2,'0')+'-01', subId: sub.id, subscription: true});
+      arr.push({desc:sub.name, value:sub.value, cat:sub.cat, date:y+'-'+String(m+1).padStart(2,'0')+'-01', subId:sub.id, subscription:true});
       se(sub.cardId, y, m, arr);
     }
   });
 }
 
 function renderSubsSection(){
+  if(!S.subs) S.subs=[];
   var active = S.subs.filter(function(s){return !s.cancelled;});
   var total  = active.reduce(function(s,sub){return s+sub.value;},0);
-  document.getElementById('subsTotalVal').textContent = fmt(total);
-
+  var totalEl = document.getElementById('subsTotalVal');
+  if(totalEl) totalEl.textContent = fmt(total);
   var grid = document.getElementById('subsGrid');
+  if(!grid) return;
   if(!S.subs.length){
     grid.innerHTML = '<div style="color:var(--muted);font-size:13px;grid-column:1/-1">Nenhuma assinatura cadastrada ainda.</div>';
     return;
   }
-
   grid.innerHTML = S.subs.map(function(sub, i){
-    var col = cColor(sub.cardId);
     var statusBadge = sub.cancelled
       ? '<span style="font-size:10px;background:#55556a22;color:var(--muted);padding:2px 7px;border-radius:5px;font-weight:600">CANCELADA</span>'
       : '<span style="font-size:10px;background:#7c6aff18;color:var(--accent2);padding:2px 7px;border-radius:5px;font-weight:600">ATIVA</span>';
@@ -1624,23 +1637,18 @@ function renderSubsSection(){
 }
 
 var editingSubIdx = null;
-
 function openEditSubModal(i){
   editingSubIdx = i;
   var sub = S.subs[i];
   document.getElementById('inEditSubName').value = sub.name;
   document.getElementById('inEditSubVal').value  = sub.value;
-
   var catSel = document.getElementById('inEditSubCat');
   catSel.innerHTML = S.cats.map(function(c){ return '<option'+(c===sub.cat?' selected':'')+'>'+c+'</option>'; }).join('');
-
   var cardSel = document.getElementById('inEditSubCard');
   cardSel.innerHTML = S.cards.map(function(c){ return '<option value="'+c.id+'"'+(c.id===sub.cardId?' selected':'')+'>'+c.name+'</option>'; }).join('');
-
   document.getElementById('moEditSub').classList.add('open');
   setTimeout(function(){ document.getElementById('inEditSubName').focus(); }, 50);
 }
-
 function saveEditSub(){
   if(editingSubIdx === null) return;
   var sub = S.subs[editingSubIdx];
@@ -1648,86 +1656,45 @@ function saveEditSub(){
   var newVal    = parseFloat(document.getElementById('inEditSubVal').value);
   var newCat    = document.getElementById('inEditSubCat').value;
   var newCardId = document.getElementById('inEditSubCard').value;
-
   if(!newName){ document.getElementById('inEditSubName').focus(); return; }
   if(!newVal || newVal <= 0){ document.getElementById('inEditSubVal').focus(); return; }
-
-  var oldName   = sub.name;
-  var oldVal    = sub.value;
-  var oldCat    = sub.cat;
+  sub.name=newName; sub.value=newVal; sub.cat=newCat;
   var oldCardId = sub.cardId;
-
-  // Update the sub
-  sub.name   = newName;
-  sub.value  = newVal;
-  sub.cat    = newCat;
   sub.cardId = newCardId;
-
-  // Update all injected entries across all months that match this sub
-  var startY = parseInt(sub.start.split('-')[0]);
-  var startM = parseInt(sub.start.split('-')[1]) - 1;
-
-  // Go through all years/months in data and update matching entries
   Object.keys(S.data).forEach(function(cid){
+    if(!S.data[cid]) return;
     Object.keys(S.data[cid]).forEach(function(y){
       Object.keys(S.data[cid][y]).forEach(function(m){
         var arr = S.data[cid][y][m];
-        var changed = false;
+        var toMove = [];
         arr.forEach(function(e){
-          if(e.subId === sub.id){
-            // Remove from old card if card changed
-            if(cid !== newCardId){
-              // Will be handled by removing below
-            }
-            e.desc  = newName;
-            e.value = newVal;
-            e.cat   = newCat;
-            changed = true;
-          }
+          if(e.subId === sub.id){ e.desc=newName; e.value=newVal; e.cat=newCat; if(cid!==newCardId) toMove.push(e); }
         });
-        if(changed){
-          if(cid !== newCardId){
-            // Move entries to new card
-            var keep    = arr.filter(function(e){ return e.subId !== sub.id; });
-            var toMove  = arr.filter(function(e){ return e.subId === sub.id; });
-            S.data[cid][y][m] = keep;
-            if(!S.data[newCardId])          S.data[newCardId] = {};
-            if(!S.data[newCardId][y])        S.data[newCardId][y] = {};
-            if(!S.data[newCardId][y][m])     S.data[newCardId][y][m] = [];
-            // Only add if not already there
-            var destArr = S.data[newCardId][y][m];
-            var alreadyThere = destArr.some(function(e){ return e.subId === sub.id; });
-            if(!alreadyThere) toMove.forEach(function(e){ destArr.push(e); });
-          }
-          // If same card, entries were updated in-place above
+        if(toMove.length && cid!==newCardId){
+          S.data[cid][y][m] = arr.filter(function(e){return e.subId!==sub.id;});
+          if(!S.data[newCardId]) S.data[newCardId]={};
+          if(!S.data[newCardId][y]) S.data[newCardId][y]={};
+          if(!S.data[newCardId][y][m]) S.data[newCardId][y][m]=[];
+          toMove.forEach(function(e){ S.data[newCardId][y][m].push(e); });
         }
       });
     });
   });
-
-  save();
-  closeMo('moEditSub');
-  editingSubIdx = null;
-  renderSubsSection();
+  save(); closeMo('moEditSub'); editingSubIdx=null; renderSubsSection();
   showToast('"'+newName+'" atualizada!');
 }
-
 function openAddSubModal(){
   document.getElementById('inSubName').value = '';
   document.getElementById('inSubVal').value  = '';
-  // populate cat select
   var catSel = document.getElementById('inSubCat');
   catSel.innerHTML = S.cats.map(function(c){return '<option>'+c+'</option>';}).join('');
-  // populate card select
   var cardSel = document.getElementById('inSubCard');
   cardSel.innerHTML = S.cards.map(function(c){return '<option value="'+c.id+'">'+c.name+'</option>';}).join('');
-  // default start = current month
   var now = new Date();
   document.getElementById('inSubStart').value = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   document.getElementById('moAddSub').classList.add('open');
   setTimeout(function(){document.getElementById('inSubName').focus();},50);
 }
-
 function saveNewSub(){
   var name  = document.getElementById('inSubName').value.trim();
   var value = parseFloat(document.getElementById('inSubVal').value);
@@ -1736,28 +1703,15 @@ function saveNewSub(){
   var start = document.getElementById('inSubStart').value;
   if(!name){document.getElementById('inSubName').focus();return;}
   if(!value||value<=0){document.getElementById('inSubVal').focus();return;}
+  if(!S.subs) S.subs=[];
   var sub = {id:'sub_'+Date.now(), name:name, value:value, cat:cat, cardId:cardId, start:start, cancelled:false};
   S.subs.push(sub);
-  // Inject immediately for current month if applicable
   injectSubsForMonth(year, month);
-  save();
-  closeMo('moAddSub');
-  renderSubsSection();
+  save(); closeMo('moAddSub'); renderSubsSection();
   showToast('"'+name+'" adicionada como assinatura!');
 }
-
-function cancelSub(i){
-  S.subs[i].cancelled = true; save();
-  renderSubsSection();
-  showToast('Assinatura cancelada.');
-}
-
-function restoreSub(i){
-  S.subs[i].cancelled = false;
-  injectSubsForMonth(year, month);
-  save(); renderSubsSection();
-  showToast('Assinatura reativada!');
-}
+function cancelSub(i){ S.subs[i].cancelled=true; save(); renderSubsSection(); showToast('Assinatura cancelada.'); }
+function restoreSub(i){ S.subs[i].cancelled=false; injectSubsForMonth(year,month); save(); renderSubsSection(); showToast('Assinatura reativada!'); }
 
 // ── SAVINGS (CAIXINHAS) ───────────────────────────────
 var BOX_EMOJIS = ['🏦','✈️','🏠','🚗','📱','💻','🎓','💍','🏖️','🎉','🛍️','⚕️','🐾','🌱','💰'];
@@ -1767,52 +1721,42 @@ var selectedBoxEmoji = '🏦';
 var selectedBoxColor = '#22d87a';
 
 function boxBalance(box){
-  return box.history.reduce(function(s,h){ return s + (h.type==='deposit' ? h.val : -h.val); }, 0);
+  return box.history.reduce(function(s,h){ return s+(h.type==='deposit'?h.val:-h.val); }, 0);
 }
-
 function renderSavingsView(){
   if(!S.boxes) S.boxes=[];
-  var total=S.boxes.reduce(function(s,b){ return s+boxBalance(b); },0);
-  var active=S.boxes.length;
-  var biggest=S.boxes.length ? S.boxes.reduce(function(a,b){ return boxBalance(b)>boxBalance(a)?b:a; }) : null;
-
+  var total=S.boxes.reduce(function(s,b){return s+boxBalance(b);},0);
   document.getElementById('savTotalVal').textContent = fmt(total);
-  document.getElementById('savBoxCount').textContent = active;
-  document.getElementById('savBiggest').textContent  = biggest ? biggest.name : '—';
-
+  document.getElementById('savBoxCount').textContent = S.boxes.length;
+  var biggest = S.boxes.length ? S.boxes.reduce(function(a,b){return boxBalance(b)>boxBalance(a)?b:a;}) : null;
+  document.getElementById('savBiggest').textContent = biggest ? biggest.name : '—';
   var grid=document.getElementById('boxesGrid');
   if(!S.boxes.length){
     grid.innerHTML='<div style="color:var(--muted);font-size:13px;grid-column:1/-1">Nenhuma caixinha ainda. Clique em "+ Nova caixinha" para começar!</div>';
     return;
   }
-
   grid.innerHTML=S.boxes.map(function(box,i){
     var bal=boxBalance(box);
-    var balColor=bal>=0?'var(--green)':'var(--danger)';
     return '<div class="box-card">'+
       '<div class="box-card-top">'+
         '<div style="display:flex;align-items:center;gap:12px">'+
           '<div class="box-card-icon" style="background:'+box.color+'22">'+box.emoji+'</div>'+
           '<div><div class="box-card-name">'+box.name+'</div>'+(box.desc?'<div class="box-card-desc">'+box.desc+'</div>':'')+'</div>'+
         '</div>'+
-        '<button class="box-del-btn" onclick="deleteBox('+i+')" title="Excluir caixinha">🗑️</button>'+
+        '<button class="box-del-btn" onclick="deleteBox('+i+')" title="Excluir">🗑️</button>'+
       '</div>'+
-      '<div class="box-card-bal" style="color:'+balColor+'">'+fmt(bal)+'</div>'+
+      '<div class="box-card-bal" style="color:'+(bal>=0?'var(--green)':'var(--danger)')+'">'+fmt(bal)+'</div>'+
       '<div class="box-card-actions">'+
         '<button class="box-btn deposit" onclick="openDepositModal('+i+')">＋ Depositar</button>'+
         '<button class="box-btn withdraw" onclick="openWithdrawModal('+i+')">− Retirar</button>'+
-        '<button class="box-btn history" onclick="openBoxHistory('+i+')" title="Ver histórico">📋</button>'+
+        '<button class="box-btn history" onclick="openBoxHistory('+i+')" title="Histórico">📋</button>'+
       '</div>'+
     '</div>';
   }).join('');
 }
-
 function openAddBoxModal(){
-  document.getElementById('inBoxName').value='';
-  document.getElementById('inBoxDesc').value='';
-  selectedBoxEmoji=BOX_EMOJIS[0];
-  selectedBoxColor=BOX_COLORS[0];
-
+  document.getElementById('inBoxName').value=''; document.getElementById('inBoxDesc').value='';
+  selectedBoxEmoji=BOX_EMOJIS[0]; selectedBoxColor=BOX_COLORS[0];
   var ep=document.getElementById('emojiPicker'); ep.innerHTML='';
   BOX_EMOJIS.forEach(function(e,i){
     var b=document.createElement('button'); b.type='button';
@@ -1821,7 +1765,6 @@ function openAddBoxModal(){
     (function(btn,em,idx){btn.onclick=function(){selectedBoxEmoji=em;ep.querySelectorAll('button').forEach(function(x,j){x.style.background=j===idx?'var(--surface3)':'none';x.style.border=j===idx?'1px solid var(--accent)':'1px solid transparent';});};})(b,e,i);
     ep.appendChild(b);
   });
-
   var cp=document.getElementById('boxColorPicker'); cp.innerHTML='';
   BOX_COLORS.forEach(function(col,i){
     var b=document.createElement('button'); b.type='button';
@@ -1829,36 +1772,29 @@ function openAddBoxModal(){
     (function(btn,c,idx){btn.onclick=function(){selectedBoxColor=c;cp.querySelectorAll('button').forEach(function(x,j){x.style.borderColor=j===idx?'#fff':'transparent';});};})(b,col,i);
     cp.appendChild(b);
   });
-
   document.getElementById('moAddBox').classList.add('open');
   setTimeout(function(){document.getElementById('inBoxName').focus();},50);
 }
-
 function saveNewBox(){
   var name=document.getElementById('inBoxName').value.trim();
   var desc=document.getElementById('inBoxDesc').value.trim();
   if(!name){document.getElementById('inBoxName').focus();return;}
   if(!S.boxes) S.boxes=[];
   S.boxes.push({id:'box_'+Date.now(),name:name,desc:desc,emoji:selectedBoxEmoji,color:selectedBoxColor,history:[]});
-  save(); closeMo('moAddBox'); renderSavingsView();
-  showToast('"'+name+'" criada!');
+  save(); closeMo('moAddBox'); renderSavingsView(); showToast('"'+name+'" criada!');
 }
-
 function deleteBox(i){
-  if(!confirm('Excluir a caixinha "'+S.boxes[i].name+'"? Todo o histórico será perdido.')) return;
+  if(!confirm('Excluir a caixinha "'+S.boxes[i].name+'"?')) return;
   S.boxes.splice(i,1); save(); renderSavingsView();
 }
-
 function openDepositModal(i){
   activeBoxIdx=i;
   document.getElementById('moDepositTitle').textContent='Depositar em: '+S.boxes[i].name;
-  document.getElementById('inDepositVal').value='';
-  document.getElementById('inDepositDesc').value='';
+  document.getElementById('inDepositVal').value=''; document.getElementById('inDepositDesc').value='';
   document.getElementById('inDepositDate').value=new Date().toISOString().split('T')[0];
   document.getElementById('moDeposit').classList.add('open');
   setTimeout(function(){document.getElementById('inDepositVal').focus();},50);
 }
-
 function confirmDeposit(){
   var val=parseFloat(document.getElementById('inDepositVal').value);
   var desc=document.getElementById('inDepositDesc').value.trim();
@@ -1867,35 +1803,28 @@ function confirmDeposit(){
   if(!desc){document.getElementById('inDepositDesc').focus();return;}
   S.boxes[activeBoxIdx].history.push({type:'deposit',val:val,desc:desc,date:date});
   save(); closeMo('moDeposit'); renderSavingsView();
-  showToast(fmt(val)+' depositado em "'+S.boxes[activeBoxIdx].name+'"!');
-  activeBoxIdx=null;
+  showToast(fmt(val)+' depositado!'); activeBoxIdx=null;
 }
-
 function openWithdrawModal(i){
   activeBoxIdx=i;
   var bal=boxBalance(S.boxes[i]);
   document.getElementById('moWithdrawTitle').textContent='Retirar de: '+S.boxes[i].name+' ('+fmt(bal)+' disponível)';
-  document.getElementById('inWithdrawVal').value='';
-  document.getElementById('inWithdrawDesc').value='';
+  document.getElementById('inWithdrawVal').value=''; document.getElementById('inWithdrawDesc').value='';
   document.getElementById('inWithdrawDate').value=new Date().toISOString().split('T')[0];
   document.getElementById('moWithdraw').classList.add('open');
   setTimeout(function(){document.getElementById('inWithdrawVal').focus();},50);
 }
-
 function confirmWithdraw(){
   var val=parseFloat(document.getElementById('inWithdrawVal').value);
   var desc=document.getElementById('inWithdrawDesc').value.trim();
   var date=document.getElementById('inWithdrawDate').value;
   if(!val||val<=0){document.getElementById('inWithdrawVal').focus();return;}
   if(!desc){document.getElementById('inWithdrawDesc').focus();return;}
-  var bal=boxBalance(S.boxes[activeBoxIdx]);
-  if(val>bal){ showToast('Saldo insuficiente na caixinha.',true); return; }
+  if(val>boxBalance(S.boxes[activeBoxIdx])){showToast('Saldo insuficiente.',true);return;}
   S.boxes[activeBoxIdx].history.push({type:'withdraw',val:val,desc:desc,date:date});
   save(); closeMo('moWithdraw'); renderSavingsView();
-  showToast(fmt(val)+' retirado de "'+S.boxes[activeBoxIdx].name+'".');
-  activeBoxIdx=null;
+  showToast(fmt(val)+' retirado.'); activeBoxIdx=null;
 }
-
 function openBoxHistory(i){
   var box=S.boxes[i];
   document.getElementById('moBoxHistTitle').textContent='📋 '+box.name;
@@ -1905,14 +1834,8 @@ function openBoxHistory(i){
   } else {
     var sorted=box.history.slice().sort(function(a,b){return new Date(b.date)-new Date(a.date);});
     list.innerHTML=sorted.map(function(h){
-      var isDeposit=h.type==='deposit';
-      return '<div class="hist-item">'+
-        '<div class="hist-left">'+
-          '<div class="hist-desc">'+(isDeposit?'↑ ':'↓ ')+h.desc+'</div>'+
-          '<div class="hist-date">'+(h.date||'—')+'</div>'+
-        '</div>'+
-        '<div class="hist-val '+(isDeposit?'pos':'neg')+'">'+(isDeposit?'+ ':'- ')+fmt(h.val)+'</div>'+
-      '</div>';
+      var isD=h.type==='deposit';
+      return '<div class="hist-item"><div class="hist-left"><div class="hist-desc">'+(isD?'↑ ':'↓ ')+h.desc+'</div><div class="hist-date">'+(h.date||'—')+'</div></div><div class="hist-val '+(isD?'pos':'neg')+'">'+(isD?'+ ':'- ')+fmt(h.val)+'</div></div>';
     }).join('');
   }
   document.getElementById('moBoxHistory').classList.add('open');
@@ -1965,11 +1888,11 @@ function showToast(msg,err){
   document.body.appendChild(t); setTimeout(function(){if(t.parentNode)t.remove();},3000);
 }
 
-['moEntry','moAddCard','moRename','moDelete','moEdit','moSalary','moPix','moCats','moPdfReview','moAddSub','moEditSub','moAddBox','moDeposit','moWithdraw','moBoxHistory','moMove'].forEach(function(id){
+['moEntry','moAddCard','moRename','moDelete','moEdit','moSalary','moPix','moCats','moAddSub','moEditSub','moAddBox','moDeposit','moWithdraw','moBoxHistory','moMove','moBatch'].forEach(function(id){
   document.getElementById(id).addEventListener('click',function(e){if(e.target===this)closeMo(id);});
 });
 document.addEventListener('keydown',function(e){
-  if(e.key==='Escape')['moEntry','moAddCard','moRename','moDelete','moEdit','moSalary','moPix','moCats','moPdfReview','moAddSub','moEditSub','moAddBox','moDeposit','moWithdraw','moBoxHistory','moMove'].forEach(closeMo);
+  if(e.key==='Escape')['moEntry','moAddCard','moRename','moDelete','moEdit','moSalary','moPix','moCats','moAddSub','moEditSub','moAddBox','moDeposit','moWithdraw','moBoxHistory','moMove','moBatch'].forEach(closeMo);
   if(e.key==='Enter'){
     if(document.getElementById('moEntry').classList.contains('open'))saveEntry();
     if(document.getElementById('moAddCard').classList.contains('open'))saveNewCard();
